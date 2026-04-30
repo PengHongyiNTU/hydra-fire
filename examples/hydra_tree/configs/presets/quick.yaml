@@ -1,0 +1,10 @@
+description: Fast local smoke test.
+defaults:
+  - model: small
+  - optimizer: adam
+trainer:
+  max_steps: 10
+aliases:
+  steps: trainer.max_steps
+examples:
+  - hydra-fire run quick --config cli.config.yaml --steps 20 --dry-run

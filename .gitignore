@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+
+# Local Codex/session files
+.codex
+/prompts/
+
+# Root auto-generated scratch config. Example configs are committed.
+/cli.config.yaml

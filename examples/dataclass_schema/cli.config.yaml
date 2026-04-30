@@ -1,0 +1,65 @@
+app:
+  name: dataclass-schema
+  description: Dataclass schema example.
+
+hydra:
+  config_path: configs
+  config_name: config
+
+fields:
+  batch_size:
+    path: batch_size
+    alias: batch-size
+    type: int
+    default: 32
+    help: Training batch size.
+    level: core
+    sweepable: true
+    visible: true
+  lr:
+    path: lr
+    alias: lr
+    type: float
+    default: 0.001
+    help: Learning rate.
+    level: core
+    sweepable: true
+    visible: true
+  precision:
+    path: precision
+    alias: precision
+    type: str
+    default: bf16
+    help: Numeric precision.
+    level: common
+    choices:
+      - bf16
+      - fp16
+      - fp32
+    sweepable: true
+    visible: true
+  runtime.verbose:
+    path: runtime.verbose
+    alias: runtime-verbose
+    type: bool
+    default: false
+    help: Enable verbose logging.
+    level: debug
+    sweepable: false
+    visible: true
+  runtime.retries:
+    path: runtime.retries
+    alias: retries
+    type: int
+    default: 2
+    help: Retry count.
+    level: common
+    sweepable: true
+    visible: true
+
+presets:
+  default:
+    description: Use config defaults.
+    overrides: []
+    examples:
+      - hydra-fire run default --config cli.config.yaml --batch-size 16 --dry-run

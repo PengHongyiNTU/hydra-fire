@@ -1,0 +1,70 @@
+app:
+  name: hydra-tree
+  description: Existing Hydra config tree example.
+
+hydra:
+  config_path: configs
+  config_name: config
+
+fields:
+  trainer.max_steps:
+    path: trainer.max_steps
+    alias: steps
+    type: int
+    default: 100
+    help: Number of training steps.
+    level: core
+    sweepable: true
+    visible: true
+  trainer.precision:
+    path: trainer.precision
+    alias: precision
+    type: str
+    default: bf16
+    help: Numeric precision.
+    level: common
+    choices:
+      - bf16
+      - fp16
+      - fp32
+    sweepable: true
+    visible: true
+  seed:
+    path: seed
+    alias: seed
+    type: int
+    default: 7
+    help: Random seed.
+    level: advanced
+    sweepable: true
+    visible: false
+
+groups:
+  model:
+    name: model
+    choices:
+      - small
+      - large
+    default: small
+    help: Model config group.
+    visible: true
+  optimizer:
+    name: optimizer
+    choices:
+      - adam
+      - sgd
+    default: adam
+    help: Optimizer config group.
+    visible: true
+
+presets:
+  quick:
+    description: Fast local smoke test.
+    overrides:
+      - model=small
+      - optimizer=adam
+      - trainer.max_steps=10
+    aliases:
+      steps: trainer.max_steps
+    examples:
+      - hydra-fire run quick --config cli.config.yaml --steps 20 --dry-run

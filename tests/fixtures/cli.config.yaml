@@ -1,0 +1,55 @@
+app:
+  name: workflow
+  description: Hydra-compatible CLI for configurable jobs.
+
+hydra:
+  config_path: configs
+  config_name: config
+
+fields:
+  size:
+    path: job.size
+    alias: size
+    type: int
+    help: Work item size.
+    level: core
+    sweepable: true
+
+  rate:
+    path: job.rate
+    alias: rate
+    type: float
+    help: Processing rate.
+    level: core
+    sweepable: true
+
+  retries:
+    path: runtime.retries
+    alias: retries
+    type: int
+    help: Retry count.
+    level: common
+    sweepable: true
+
+  verbose:
+    path: runtime.verbose
+    alias: verbose
+    type: bool
+    help: Enable verbose output.
+    level: debug
+    sweepable: false
+
+groups:
+  job:
+    choices:
+      - baseline
+    default: baseline
+    help: Job config group.
+
+presets:
+  baseline:
+    overrides:
+      - job=baseline
+    description: Run the baseline job preset.
+    examples:
+      - hydra-fire run baseline --size 20 --rate 0.5

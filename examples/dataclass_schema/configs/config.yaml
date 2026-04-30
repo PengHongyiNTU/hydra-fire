@@ -1,0 +1,6 @@
+batch_size: 32
+lr: 0.001
+precision: bf16
+runtime:
+  verbose: false
+  retries: 2

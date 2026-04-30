@@ -1,0 +1,42 @@
+app:
+  name: sweep-preview
+  description: Preserve Hydra comma sweep syntax in dry-run previews.
+
+hydra:
+  config_path: configs
+  config_name: config
+
+fields:
+  optimizer.lr:
+    path: optimizer.lr
+    alias: lr
+    type: float
+    default: 0.001
+    help: Optimizer learning rate.
+    level: common
+    sweepable: true
+    visible: true
+  trainer.max_steps:
+    path: trainer.max_steps
+    alias: steps
+    type: int
+    default: 100
+    help: Number of training steps.
+    level: common
+    sweepable: true
+    visible: true
+
+groups:
+  optimizer:
+    name: optimizer
+    choices:
+      - adam
+      - sgd
+    default: adam
+    help: Optimizer config group.
+    visible: true
+
+presets:
+  default:
+    description: Base sweep preview preset.
+    overrides: []

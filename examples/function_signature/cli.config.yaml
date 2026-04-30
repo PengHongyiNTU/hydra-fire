@@ -1,0 +1,42 @@
+app:
+  name: function-signature
+  description: "An example of a CLI configuration file for a function signature."
+hydra:
+  config_path: configs
+  config_name: config
+fields:
+  batch_size:
+    path: batch_size
+    alias: batch-size
+    type: int
+    kind: value
+    default: 32
+    required: false
+    help: 'Batch size for training'
+    level: common
+    sweepable: true
+    visible: true
+  lr:
+    path: lr
+    alias: lr
+    type: float
+    kind: value
+    default: 0.001
+    required: false
+    help: 'Learning rate for the optimizer'
+    level: common
+    sweepable: true
+    visible: true
+  debug:
+    path: debug
+    alias: debug
+    type: bool
+    kind: value
+    default: false
+    required: false
+    help: 'Enable debug mode'
+    level: common
+    sweepable: true
+    visible: true
+groups: {}
+presets: {}

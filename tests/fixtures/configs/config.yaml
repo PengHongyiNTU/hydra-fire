@@ -1,0 +1,12 @@
+defaults:
+  - job: baseline
+  - _self_
+
+seed: 1
+runtime:
+  verbose: false
+  retries: 2
+
+job:
+  size: 10
+  rate: 0.1

@@ -1,0 +1,9 @@
+defaults:
+  - model: small
+  - optimizer: adam
+  - _self_
+
+seed: 7
+trainer:
+  max_steps: 100
+  precision: bf16
