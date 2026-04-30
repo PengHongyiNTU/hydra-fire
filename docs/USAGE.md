@@ -155,16 +155,18 @@ Launch interactively:
 hydra-fire launch --config cli.config.yaml
 ```
 
-## Source Installation
+## GitHub Installation
 
-Until PyPI publication, install from GitHub:
+The first release is distributed from GitHub, not PyPI.
 
 ```bash
-uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
 ```
 
 or:
 
 ```bash
-pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
 ```
+
+Use `@master` or omit the tag if you want the latest repository state.

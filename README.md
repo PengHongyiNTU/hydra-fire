@@ -33,28 +33,34 @@ clear previews, and an interactive launcher when the command gets too long.
 
 ## Status
 
-Hydra Fire is pre-release software. The current codebase is suitable for source
-installation from GitHub and local project trials. Publish to PyPI after final
-API naming review and release notes are complete.
+Hydra Fire `0.1.0` is the first GitHub source release. It is intended to be
+installed directly from GitHub and used in local experiment projects. There is
+no PyPI package for this release.
 
 ## Install
 
-From a local checkout:
+Install from GitHub:
 
 ```bash
-uv sync
-```
-
-Use directly from GitHub before PyPI publication:
-
-```bash
-uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
 ```
 
 or:
 
 ```bash
-pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
+```
+
+Install the latest `master` version directly from GitHub:
+
+```bash
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+```
+
+For development from a local checkout:
+
+```bash
+uv sync
 ```
 
 ## Quickstart
