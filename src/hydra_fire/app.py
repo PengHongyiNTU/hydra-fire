@@ -15,7 +15,14 @@ from .compose import compose_config, to_yaml
 from .core.config import ensure_cli_config
 from .core.errors import AmbiguousSweepValueError, HydraFireError
 from .core.overrides import expand_args, target_map
-from .render import render_decorator_help, render_fields, render_groups
+from .render import (
+    render_decorator_help,
+    render_explain,
+    render_fields,
+    render_groups,
+    render_preset_list,
+    render_suggest,
+)
 from .sources import build_config_spec
 from .tui import launch_interactive
 from .validate import validate_config
@@ -118,6 +125,29 @@ def _run_command(
         _require_no_command_args(command, args)
         render_groups(spec, console, include_hidden=True)
         return CommandResult(handled=True)
+    if command == "recipes":
+        _require_no_command_args(command, args)
+        render_preset_list(spec, console)
+        return CommandResult(handled=True)
+    if command == "explain":
+        if not args:
+            console.print("[red]explain requires a target (preset name or group=choice)[/red]")
+            return CommandResult(handled=True)
+        render_explain(
+            spec,
+            args[0],
+            console,
+            config_path=config_path,
+            config_name=config_name,
+            base_path=str(base_path),
+        )
+        return CommandResult(handled=True)
+    if command == "suggest":
+        if not args:
+            console.print("[red]suggest requires a name to search[/red]")
+            return CommandResult(handled=True)
+        render_suggest(spec, args[0], console)
+        return CommandResult(handled=True)
     if command == "show":
         overrides = expand_args(args, spec)
         cfg = compose_config(
@@ -167,7 +197,7 @@ def _print_expected_error(exc: Exception) -> None:
     console.print(f"[red]{exc.__class__.__name__}:[/red] {exc}")
 
 
-_COMMANDS = {"fields", "groups", "show", "sweep", "launch", "help"}
+_COMMANDS = {"fields", "groups", "show", "sweep", "launch", "help", "recipes", "explain", "suggest"}
 _MULTIRUN_FLAGS = {"--multirun", "-m"}
 
 

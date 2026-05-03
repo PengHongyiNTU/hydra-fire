@@ -35,6 +35,12 @@ def test_builds_spec_from_pydantic_model():
     assert spec.fields["runtime.verbose"].help == "Enable verbose output."
 
 
+def test_pydantic_fields_default_to_advanced():
+    spec = spec_from_pydantic(WorkflowConfig)
+    for name, field in spec.fields.items():
+        assert field.level == "advanced", f"field '{name}' should be advanced, got {field.level}"
+
+
 def test_pydantic_enum_choices_use_values():
     class Config(BaseModel):
         status: Status = Status.ACTIVE

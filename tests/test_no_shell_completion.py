@@ -25,3 +25,10 @@ def test_generated_cli_does_not_advertise_shell_completion():
     assert result.exit_code == 0
     assert "--install-completion" not in result.output
     assert "--show-completion" not in result.output
+
+
+def test_global_cli_has_completion_command():
+    result = CliRunner().invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "completion" in result.output

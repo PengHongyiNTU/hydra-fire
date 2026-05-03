@@ -18,7 +18,7 @@ from hydra_fire.compose import compose_config, to_yaml
 from hydra_fire.core.overrides import preset_overrides, target_map
 from hydra_fire.core.spec import ArgumentField, ConfigGroup, ConfigSpec
 
-HELP_TEXT = """[bold cyan]Type normal CLI arguments, then press Enter.[/bold cyan]
+_BASE_HELP_TEXT = """[bold cyan]Type normal CLI arguments, then press Enter.[/bold cyan]
 
 [dim]Examples[/dim]
   [green]--batch-size 64 --lr 0.01[/green]
@@ -28,6 +28,21 @@ HELP_TEXT = """[bold cyan]Type normal CLI arguments, then press Enter.[/bold cya
 [magenta]Tab[/magenta] completes generated options and known choices. [magenta]Arrow keys[/magenta]
 select completion items. Raw Hydra overrides still work.
 """
+
+
+def _build_help_text(spec: ConfigSpec) -> str:
+    if not spec.run_modes:
+        return _BASE_HELP_TEXT
+    mode_parts = " | ".join(rm.name for rm in spec.run_modes)
+    modes_line = f"\n[dim]Launch modes:[/dim] [cyan]{mode_parts}[/cyan]\n"
+    required_lines = []
+    for rm in spec.run_modes:
+        req = " ".join(f"--{r}" for r in rm.requires)
+        opt = " ".join(f"[--{o}]" for o in rm.optional)
+        parts = [p for p in [req, opt] if p]
+        required_lines.append(f"  [dim]{rm.name}:[/dim] [green]{' '.join(parts)}[/green]")
+    return _BASE_HELP_TEXT + modes_line + "\n".join(required_lines) + "\n"
+
 
 PROMPT_STYLE = Style.from_dict(
     {
@@ -85,7 +100,7 @@ def launch_interactive(
     active_console.print(Rule("[bold cyan]Hydra Fire Launcher[/bold cyan]"))
     active_console.print(
         Panel(
-            HELP_TEXT,
+            _build_help_text(spec),
             title=f"[bold]{spec.app.name}[/bold]",
             border_style="cyan",
             expand=False,

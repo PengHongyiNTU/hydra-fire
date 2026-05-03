@@ -139,6 +139,24 @@ def test_preset_overrides_are_prepended():
     assert preset_overrides(spec, "baseline", ["--size", "2"]) == ["job=baseline", "job.size=2"]
 
 
+def test_config_group_target_used_in_override_path():
+    spec = ConfigSpec(
+        groups={
+            "model-profile": ConfigGroup(
+                name="model-profile",
+                target="model_profile",
+                choices=["vit_base", "vit_small"],
+            )
+        }
+    )
+    assert expand_args(["--model-profile", "vit_base"], spec) == ["model_profile=vit_base"]
+
+
+def test_config_group_without_target_uses_name():
+    spec = ConfigSpec(groups={"model": ConfigGroup(name="model", choices=["small", "large"])})
+    assert expand_args(["--model", "small"], spec) == ["model=small"]
+
+
 def test_preset_aliases_do_not_apply_to_key_value_tokens():
     spec = ConfigSpec(
         fields={"size": ArgumentField(path="job.size")},

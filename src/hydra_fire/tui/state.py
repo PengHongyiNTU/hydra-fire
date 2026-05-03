@@ -11,6 +11,7 @@ from hydra_fire.core.spec import ConfigSpec
 class LauncherState:
     spec: ConfigSpec
     preset: str | None = None
+    run_mode: str | None = None
     selections: dict[str, str] = field(default_factory=dict)
     raw_overrides: list[str] = field(default_factory=list)
 
@@ -18,6 +19,11 @@ class LauncherState:
         if name is not None and name not in self.spec.presets:
             raise UnknownPresetError(f"Unknown preset: {name}")
         self.preset = name
+
+    def set_run_mode(self, name: str | None) -> None:
+        if name is not None and not any(rm.name == name for rm in self.spec.run_modes):
+            raise ValueError(f"Unknown run mode: {name}")
+        self.run_mode = name
 
     def set_argument(self, name: str, value: str) -> None:
         targets = target_map(self.spec, self.preset)
@@ -39,6 +45,7 @@ class LauncherState:
 
     def clear(self) -> None:
         self.preset = None
+        self.run_mode = None
         self.selections.clear()
         self.raw_overrides.clear()
 
@@ -47,6 +54,25 @@ class LauncherState:
 
     def preset_names(self) -> list[str]:
         return sorted(self.spec.presets)
+
+    def run_mode_names(self) -> list[str]:
+        return [rm.name for rm in self.spec.run_modes]
+
+    def required_fields(self) -> list[str]:
+        if self.run_mode is None:
+            return []
+        for rm in self.spec.run_modes:
+            if rm.name == self.run_mode:
+                return list(rm.requires)
+        return []
+
+    def optional_fields(self) -> list[str]:
+        if self.run_mode is None:
+            return []
+        for rm in self.spec.run_modes:
+            if rm.name == self.run_mode:
+                return list(rm.optional)
+        return []
 
     def values_for(self, name: str) -> list[str]:
         target = target_map(self.spec, self.preset).get(name)
@@ -72,6 +98,8 @@ class LauncherState:
 
     def summary(self) -> str:
         lines: list[str] = []
+        if self.run_mode is not None:
+            lines.append(f"run mode: {self.run_mode}")
         if self.preset is not None:
             lines.append(f"preset: {self.preset}")
         if self.selections:

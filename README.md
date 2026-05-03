@@ -33,9 +33,14 @@ clear previews, and an interactive launcher when the command gets too long.
 
 ## Status
 
-Hydra Fire `0.1.0` is the first GitHub source release. It is intended to be
-installed directly from GitHub and used in local experiment projects. There is
-no PyPI package for this release.
+Hydra Fire `0.2.0` adds curated launcher behavior: deep schema leaves are hidden
+by default, groups support `target`/`alias`/`choices:auto`, a public recipe name
+replaces the generic `--preset`, and `run_modes` declare required launch
+combinations rendered in help output. New commands: `recipes`, `explain`,
+`suggest`, `completion`, and `fields --level`/`--search` filters.
+
+Hydra Fire is intended to be installed directly from GitHub and used in local
+experiment projects. There is no PyPI package for this release.
 
 ## Install
 
@@ -276,7 +281,61 @@ The launcher and non-interactive CLI use the same override translation layer.
 visibility, choices, docs, groups, and presets while Hydra remains responsible
 for composition.
 
-See [docs/CLI_CONFIG.md](docs/CLI_CONFIG.md) for the full reference.
+### Curated groups with `target`, `alias`, and `choices: auto`
+
+```yaml
+groups:
+  model-profile:
+    target: model_profile   # Hydra override path: model_profile=vit_base
+    alias: model-profile    # CLI flag: --model-profile vit_base
+    choices: auto           # auto-discovered from configs/model_profile/
+    visible: true
+```
+
+### Public recipe name
+
+```yaml
+presets:
+  public_name: recipe       # --recipe instead of --preset
+  mnist_vit_lora:
+    overrides: [recipe=mnist_vit_lora]
+```
+
+### Run modes
+
+```yaml
+run_modes:
+  - name: recipe
+    requires: [recipe, output-dir]
+  - name: explicit_axes
+    requires: [problem, model-profile, output-dir]
+    optional: [method]
+```
+
+Help output renders:
+
+```text
+[Launch Modes]
+  Choose one:
+    --recipe --output-dir
+    --problem --model-profile --output-dir [--method]
+```
+
+### Schema fields are advanced by default
+
+Pydantic and dataclass schema fields default to `level: advanced` (hidden from
+default help). Use raw Hydra overrides (`key=value`) or mark fields explicitly
+in `cli.config.yaml`:
+
+```yaml
+fields:
+  output-dir:
+    path: local.output_dir
+    level: core
+```
+
+See [docs/CLI_CONFIG.md](docs/CLI_CONFIG.md) and [docs/USAGE.md](docs/USAGE.md)
+for the full reference.
 
 ## Examples
 

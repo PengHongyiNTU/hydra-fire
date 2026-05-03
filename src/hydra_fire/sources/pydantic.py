@@ -43,4 +43,5 @@ def _collect_pydantic_fields(
             required=model_field.is_required(),
             help=model_field.description or "",
             choices=choices_from_annotation(annotation),
+            level="advanced",
         )

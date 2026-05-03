@@ -16,7 +16,14 @@ from .core.overrides import expand_args, preset_overrides, target_map
 from .docs import render_markdown_docs
 from .errors import HydraFireError, RunNotImplementedError
 from .generated import CONTEXT_SETTINGS
-from .render import render_fields, render_groups, render_preset_description, render_preset_list
+from .render import (
+    render_explain,
+    render_fields,
+    render_groups,
+    render_preset_description,
+    render_preset_list,
+    render_suggest,
+)
 from .sources import build_config_spec
 from .tui import launch_interactive
 
@@ -63,7 +70,7 @@ def _fail(exc: Exception) -> NoReturn:
 
 def _spec(config_path: Path):
     try:
-        return load_cli_config(config_path)
+        return load_cli_config(config_path, base_path=config_path.parent)
     except HydraFireError as exc:
         _fail(exc)
 
@@ -129,12 +136,27 @@ def list_presets(
 
 
 @app.command()
+def recipes(
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """List available recipes (presets) with descriptions."""
+    spec = _spec(config)
+    render_preset_list(spec, console)
+
+
+@app.command()
 def fields(
     config: Path = CONFIG_OPTION,
     all: bool = typer.Option(False, "--all"),
+    level: str | None = typer.Option(
+        None, "--level", help="Filter by level (core/common/advanced/debug)"
+    ),
+    search: str | None = typer.Option(
+        None, "--search", help="Filter by substring in name/path/help"
+    ),
 ) -> None:
     spec = _spec(config)
-    render_fields(spec, console, include_hidden=all)
+    render_fields(spec, console, include_hidden=all, level=level, search=search)
 
 
 @app.command()
@@ -176,6 +198,55 @@ def describe(
         render_preset_description(spec, preset, console)
     except HydraFireError as exc:
         _fail(exc)
+
+
+@app.command()
+def explain(
+    target: str,
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Explain a recipe (preset name) or a group choice (group=choice)."""
+    spec = _spec(config)
+    try:
+        render_explain(
+            spec,
+            target,
+            console,
+            config_path=spec.hydra.config_path,
+            config_name=spec.hydra.config_name,
+            base_path=str(config.parent),
+        )
+    except HydraFireError as exc:
+        _fail(exc)
+
+
+@app.command()
+def suggest(
+    name: str,
+    config: Path = CONFIG_OPTION,
+) -> None:
+    """Suggest close matches for a partial flag or field name."""
+    spec = _spec(config)
+    render_suggest(spec, name, console)
+
+
+@app.command()
+def completion(
+    shell: str = typer.Argument("bash", help="Shell type: bash, zsh, or fish"),
+) -> None:
+    """Generate shell completion script for hydra-fire."""
+    import os
+
+    os.environ["_HYDRA_FIRE_COMPLETE"] = f"{shell}_source"
+    try:
+        app(standalone_mode=False)
+    except SystemExit:
+        pass
+    except Exception:
+        console.print(
+            f"[yellow]Shell completion generation for '{shell}' requires "
+            "the shell to be supported by click/typer.[/yellow]"
+        )
 
 
 @app.command(context_settings=CONTEXT_SETTINGS)

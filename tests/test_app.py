@@ -420,13 +420,15 @@ def test_hydra_fire_schema_mode_invokes_with_pydantic_model(tmp_path):
         seen["cfg"] = cfg
         return cfg.lr
 
-    assert main(["--lr", "0.01", "runtime.verbose=true"]) == 0.01
+    # schema fields are advanced by default; use raw Hydra overrides to set them
+    assert main(["lr=0.01", "runtime.verbose=true"]) == 0.01
     assert isinstance(seen["cfg"], TrainConfig)
     assert seen["cfg"].batch_size == 16
     assert seen["cfg"].runtime.verbose is True
     spec = load_cli_config(cli_config)
     assert spec.fields["batch_size"].help == "Training batch size."
     assert spec.fields["runtime.verbose"].type == "bool"
+    assert spec.fields["batch_size"].level == "advanced"
 
 
 def test_hydra_fire_schema_mode_surfaces_pydantic_validation_errors(tmp_path):
@@ -487,7 +489,8 @@ def test_hydra_fire_schema_mode_invokes_with_nested_dataclass(tmp_path):
     def main(cfg: TrainConfig):
         return cfg
 
-    cfg = main(["--batch-size", "64", "runtime.verbose=true"])
+    # schema fields are advanced by default; use raw Hydra overrides to set them
+    cfg = main(["batch_size=64", "runtime.verbose=true"])
 
     assert isinstance(cfg, TrainConfig)
     assert cfg.batch_size == 64

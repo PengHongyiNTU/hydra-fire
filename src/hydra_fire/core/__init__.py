@@ -11,6 +11,8 @@ from .spec import (
     FieldLevel,
     HydraConfig,
     Preset,
+    PresetConfig,
+    RunMode,
     ValueType,
     merge_specs,
 )
@@ -24,6 +26,8 @@ __all__ = [
     "FieldLevel",
     "HydraConfig",
     "Preset",
+    "PresetConfig",
+    "RunMode",
     "ValueType",
     "expand_args",
     "ensure_cli_config",

@@ -286,3 +286,72 @@ def test_sweep_prints_multirun_overrides():
 
     assert result.exit_code == 0
     assert "-m job=baseline job.size=4,8,16" in result.output
+
+
+def test_recipes_command_lists_presets():
+    result = runner.invoke(app, ["recipes", "--config", str(CONFIG)])
+
+    assert result.exit_code == 0
+    assert "baseline" in result.output
+
+
+def test_fields_command_with_level_filter(tmp_path):
+    from hydra_fire.core.config import save_cli_config
+    from hydra_fire.core.spec import ArgumentField, ConfigSpec
+
+    spec = ConfigSpec(
+        fields={
+            "size": ArgumentField(path="job.size", type="int", level="core"),
+            "verbose": ArgumentField(path="runtime.verbose", type="bool", level="advanced"),
+        }
+    )
+    config_path = tmp_path / "cli.config.yaml"
+    save_cli_config(spec, config_path)
+
+    result = runner.invoke(app, ["fields", "--level", "core", "--config", str(config_path)])
+    assert result.exit_code == 0
+    assert "size" in result.output
+    assert "verbose" not in result.output
+
+
+def test_fields_command_with_search_filter(tmp_path):
+    from hydra_fire.core.config import save_cli_config
+    from hydra_fire.core.spec import ArgumentField, ConfigSpec
+
+    spec = ConfigSpec(
+        fields={
+            "learning-rate": ArgumentField(path="optimizer.lr", help="Learning rate."),
+            "epochs": ArgumentField(path="trainer.epochs"),
+        }
+    )
+    config_path = tmp_path / "cli.config.yaml"
+    save_cli_config(spec, config_path)
+
+    result = runner.invoke(app, ["fields", "--search", "learn", "--config", str(config_path)])
+    assert result.exit_code == 0
+    assert "learning-rate" in result.output
+    assert "epochs" not in result.output
+
+
+def test_suggest_command(tmp_path):
+    from hydra_fire.core.config import save_cli_config
+    from hydra_fire.core.spec import ArgumentField, ConfigSpec
+
+    spec = ConfigSpec(
+        fields={
+            "output-dir": ArgumentField(path="local.output_dir", level="core"),
+        }
+    )
+    config_path = tmp_path / "cli.config.yaml"
+    save_cli_config(spec, config_path)
+
+    result = runner.invoke(app, ["suggest", "outpu", "--config", str(config_path)])
+    assert result.exit_code == 0
+    assert "output-dir" in result.output
+
+
+def test_groups_command_shows_target_column():
+    result = runner.invoke(app, ["groups", "--config", str(CONFIG)])
+
+    assert result.exit_code == 0
+    assert "Target" in result.output

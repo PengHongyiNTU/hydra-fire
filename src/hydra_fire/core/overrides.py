@@ -50,7 +50,7 @@ def target_map(
     for name, group in spec.groups.items():
         if not group.visible:
             continue
-        target = OverrideTarget(group.name, group=group)
+        target = OverrideTarget(group.hydra_group, group=group)
         targets[name] = target
         for cli_name in group.cli_names:
             targets[cli_name] = target

@@ -131,6 +131,96 @@ For raw Hydra overrides, use Hydra's multirun flag:
 python app.py --multirun optimizer.lr=1e-4,3e-4,1e-3
 ```
 
+## Curated CLI Config
+
+By default, Pydantic and dataclass schema fields are `advanced` and hidden from
+help. Only explicitly declared fields appear as friendly flags.
+
+A curated `cli.config.yaml` with `choices: auto`, a public recipe name, and run
+modes looks like:
+
+```yaml
+app:
+  name: myapp
+hydra:
+  config_path: configs
+  config_name: config
+presets:
+  public_name: recipe          # --recipe instead of --preset
+groups:
+  recipe:
+    target: recipe             # Hydra group path
+    choices: auto              # auto-discovered from configs/recipe/
+    visible: true
+  model-profile:
+    target: model_profile      # Hydra group path (underscore)
+    alias: model-profile       # CLI flag (kebab-case)
+    choices: auto
+    visible: true
+fields:
+  output-dir:
+    path: local.output_dir
+    alias: output-dir
+    type: str
+    level: core
+run_modes:
+  - name: recipe
+    requires: [recipe, output-dir]
+  - name: explicit_axes
+    requires: [problem, model-profile, output-dir]
+    optional: [method]
+```
+
+This exposes only `--recipe`, `--model-profile`, and `--output-dir` in default
+help while keeping all raw Hydra overrides available.
+
+### Group `target` and `alias`
+
+`target` is the Hydra config group path used in overrides. `alias` is the CLI
+flag name. If omitted, both are derived from `name`:
+
+```yaml
+groups:
+  model-profile:
+    target: model_profile      # override → model_profile=vit_base
+    alias: model-profile       # flag → --model-profile vit_base
+    choices: [vit_base, vit_small]
+```
+
+### `choices: auto`
+
+Set `choices: auto` to auto-discover choices from the Hydra config directory at
+load time. The directory is resolved as
+`<base_path>/<hydra.config_path>/<target>`.
+
+### Public recipe name
+
+Add `public_name: recipe` under the `presets:` key to change `--preset` to
+`--recipe` in help output and completions.
+
+### Run modes
+
+`run_modes` declares valid launch combinations that appear in `[Launch Modes]`:
+
+```text
+[Launch Modes]
+  Choose one:
+    --recipe --output-dir
+    --problem --model-profile --output-dir [--method]
+```
+
+## Discovery commands
+
+```bash
+hydra-fire recipes --config cli.config.yaml
+hydra-fire explain mnist_vit_lora --config cli.config.yaml
+hydra-fire explain recipe=mnist_vit_lora --config cli.config.yaml
+hydra-fire suggest learn --config cli.config.yaml
+hydra-fire fields --level core --config cli.config.yaml
+hydra-fire fields --search learning --config cli.config.yaml
+hydra-fire completion bash
+```
+
 ## Global CLI
 
 Generate a CLI config:

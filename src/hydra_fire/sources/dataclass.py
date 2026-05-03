@@ -47,6 +47,7 @@ def _collect_dataclass_fields(
             required=required,
             help=str(metadata.get("help") or metadata.get("description") or ""),
             choices=choices_from_annotation(annotation),
+            level="advanced",
         )
 
 

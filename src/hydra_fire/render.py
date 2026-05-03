@@ -20,17 +20,22 @@ def render_decorator_help(
     console.print(f"  {prog_name} --multirun [OPTIONS] [HYDRA_SWEEPS...]", markup=False)
     console.print(f"  {prog_name} fields", markup=False)
     console.print(f"  {prog_name} groups", markup=False)
+    console.print(f"  {prog_name} recipes", markup=False)
     console.print(f"  {prog_name} show [OPTIONS] [HYDRA_OVERRIDES...]", markup=False)
     console.print(
         f"  {prog_name} sweep [OPTIONS] [HYDRA_SWEEPS...]  Print Hydra multirun overrides.",
         markup=False,
     )
+    console.print(f"  {prog_name} explain <target>", markup=False)
+    console.print(f"  {prog_name} suggest <name>", markup=False)
     console.print(f"  {prog_name} launch", markup=False)
     console.print("")
     console.print("[Examples]")
     for example in _help_examples(spec, prog_name):
         console.print(f"  {example}", markup=False)
     console.print("")
+    if spec.run_modes:
+        _render_help_run_modes(spec, console, prog_name=prog_name)
     console.print("[Options]")
     console.print("  -h, --help, help    Show this help.")
     console.print("  -m, --multirun      Print Hydra multirun overrides.")
@@ -54,6 +59,17 @@ def render_decorator_help(
     )
 
 
+def _render_help_run_modes(spec: ConfigSpec, console: Console, *, prog_name: str = "app") -> None:
+    console.print("[Launch Modes]")
+    console.print("  Choose one:", markup=False)
+    for mode in spec.run_modes:
+        required_flags = " ".join(f"--{r}" for r in mode.requires)
+        optional_flags = " ".join(f"[--{o}]" for o in mode.optional)
+        parts = [required_flags, optional_flags] if optional_flags else [required_flags]
+        console.print(f"    {' '.join(p for p in parts if p)}", markup=False)
+    console.print("")
+
+
 def _render_help_options(spec: ConfigSpec, console: Console) -> None:
     for name, field in spec.fields.items():
         if not is_exposed_field(field):
@@ -72,18 +88,23 @@ def _render_help_groups(spec: ConfigSpec, console: Console) -> None:
     for name, group in spec.groups.items():
         if not group.visible:
             continue
-        metadata = f"group={group.name}"
+        metadata = f"group={group.hydra_group}"
         if group.default:
             metadata += f", default={group.default}"
         if group.choices:
             metadata += f", choices={','.join(group.choices)}"
-        _print_option(console, f"--{name} VALUE", metadata, group.help)
+        cli_flag = next(iter(group.cli_names), name)
+        _print_option(console, f"--{cli_flag} VALUE", metadata, group.help)
 
 
 def _render_help_presets(spec: ConfigSpec, console: Console) -> None:
+    public_name = spec.preset_config.public_name
     choices = ",".join(sorted(spec.presets))
     _print_option(
-        console, "--preset VALUE", f"choices={choices}", "Apply a discovered preset in launch mode."
+        console,
+        f"--{public_name} VALUE",
+        f"choices={choices}",
+        f"Apply a {public_name} in launch mode.",
     )
 
 
@@ -99,7 +120,8 @@ def _help_examples(spec: ConfigSpec, prog_name: str) -> list[str]:
         if not group.visible:
             continue
         value = _sample_choice(group.choices, group.default)
-        option_tokens.extend([f"--{name}", value])
+        cli_flag = next(iter(group.cli_names), name)
+        option_tokens.extend([f"--{cli_flag}", value])
         break
 
     for name, field in spec.fields.items():
@@ -146,7 +168,8 @@ def _sweep_example_tokens(spec: ConfigSpec) -> list[str]:
     tokens: list[str] = []
     for name, group in spec.groups.items():
         if group.visible and len(group.choices) >= 2:
-            tokens.extend([f"--{name}", ",".join(group.choices[:2])])
+            cli_flag = next(iter(group.cli_names), name)
+            tokens.extend([f"--{cli_flag}", ",".join(group.choices[:2])])
             break
 
     for name, field in spec.fields.items():
@@ -197,8 +220,9 @@ def _sample_raw_value(field: ArgumentField) -> str:
 
 
 def render_preset_list(spec: ConfigSpec, console: Console) -> None:
+    public_name = spec.preset_config.public_name.capitalize()
     table = Table(show_header=True, header_style="bold")
-    table.add_column("Preset")
+    table.add_column(public_name)
     table.add_column("Description")
     for name, preset in spec.presets.items():
         table.add_row(name, preset.description)
@@ -207,7 +231,8 @@ def render_preset_list(spec: ConfigSpec, console: Console) -> None:
 
 def render_preset_description(spec: ConfigSpec, preset: str, console: Console) -> None:
     card = spec.preset(preset)
-    console.print(f"[bold]Preset:[/bold] {preset}")
+    public_name = spec.preset_config.public_name.capitalize()
+    console.print(f"[bold]{public_name}:[/bold] {preset}")
     if card.description:
         console.print(f"\n[bold]Description:[/bold]\n  {card.description}")
     console.print("\n[bold]Hydra overrides:[/bold]")
@@ -243,7 +268,14 @@ def render_preset_description(spec: ConfigSpec, preset: str, console: Console) -
             console.print(f"  {example}")
 
 
-def render_fields(spec: ConfigSpec, console: Console, *, include_hidden: bool = False) -> None:
+def render_fields(
+    spec: ConfigSpec,
+    console: Console,
+    *,
+    include_hidden: bool = False,
+    level: str | None = None,
+    search: str | None = None,
+) -> None:
     table = Table(
         show_header=True,
         header_style="bold cyan",
@@ -260,6 +292,16 @@ def render_fields(spec: ConfigSpec, console: Console, *, include_hidden: bool = 
     for name, field in spec.fields.items():
         if not include_hidden and not field.visible:
             continue
+        if level is not None and field.level != level:
+            continue
+        if search is not None:
+            needle = search.lower()
+            if not (
+                needle in name.lower()
+                or needle in field.path.lower()
+                or needle in field.help.lower()
+            ):
+                continue
         option = (
             f"--{field.alias or next(iter(field.cli_names))}" if is_exposed_field(field) else ""
         )
@@ -284,17 +326,75 @@ def render_groups(spec: ConfigSpec, console: Console, *, include_hidden: bool = 
     )
     table.add_column("Name", style="bold")
     table.add_column("Option", style="green")
+    table.add_column("Target", style="magenta")
     table.add_column("Choices")
     table.add_column("Default")
     table.add_column("Help")
     for name, group in spec.groups.items():
         if not include_hidden and not group.visible:
             continue
+        cli_flag = next(iter(group.cli_names), name)
         table.add_row(
             name,
-            f"--{name}",
+            f"--{cli_flag}",
+            group.hydra_group,
             ", ".join(group.choices),
             group.default or "",
             group.help,
         )
     console.print(table)
+
+
+def render_explain(
+    spec: ConfigSpec,
+    target: str,
+    console: Console,
+    *,
+    config_path: str | None = None,
+    config_name: str = "config",
+    base_path: str | None = None,
+) -> None:
+    """Explain a preset or group=choice target."""
+    if "=" in target:
+        group_name, choice = target.split("=", 1)
+        group = spec.groups.get(group_name)
+        console.print(f"[bold]Group:[/bold] {group_name} = {choice}")
+        if group:
+            console.print(f"  Hydra path: {group.hydra_group}={choice}")
+            if group.choices:
+                console.print(f"  Choices: {', '.join(group.choices)}")
+        if config_path:
+            try:
+                from .compose import compose_config, to_yaml
+
+                cfg = compose_config(
+                    config_path,
+                    config_name,
+                    [f"{group.hydra_group if group else group_name}={choice}"],
+                    base_path=base_path,
+                )
+                console.print("\n[bold]Resolved config:[/bold]")
+                console.print(to_yaml(cfg))
+            except Exception as exc:
+                console.print(f"[yellow]Could not compose config: {exc}[/yellow]")
+    else:
+        render_preset_description(spec, target, console)
+
+
+def render_suggest(spec: ConfigSpec, name: str, console: Console) -> None:
+    """Suggest close matches for a partial flag name."""
+    from difflib import get_close_matches
+
+    candidates: list[str] = []
+    candidates.extend(spec.fields.keys())
+    candidates.extend(f.alias for f in spec.fields.values() if f.alias)
+    candidates.extend(spec.groups.keys())
+    candidates.extend(spec.presets.keys())
+
+    matches = get_close_matches(name, sorted(set(candidates)), n=5, cutoff=0.4)
+    if matches:
+        console.print(f"Suggestions for '[bold]{name}[/bold]':")
+        for m in matches:
+            console.print(f"  {m}")
+    else:
+        console.print(f"No suggestions found for '{name}'.")
