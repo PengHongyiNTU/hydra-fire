@@ -1,0 +1,79 @@
+app:
+  name: sweep-training
+  description: Simulated training run with tqdm progress. Sweep across models and optimizers.
+
+hydra:
+  config_path: configs
+  config_name: config
+
+groups:
+  model:
+    name: model
+    choices: [small, large]
+    default: small
+    help: Model architecture.
+    visible: true
+  optimizer:
+    name: optimizer
+    choices: [adam, sgd]
+    default: adam
+    help: Optimizer.
+    visible: true
+
+fields:
+  lr:
+    path: optimizer.lr
+    alias: lr
+    type: float
+    default: 0.001
+    help: Learning rate.
+    level: core
+    sweepable: true
+    visible: true
+  epochs:
+    path: trainer.epochs
+    alias: epochs
+    type: int
+    default: 5
+    help: Number of training epochs.
+    level: core
+    sweepable: true
+    visible: true
+  seed:
+    path: trainer.seed
+    alias: seed
+    type: int
+    default: 42
+    help: Random seed.
+    level: common
+    sweepable: true
+    visible: true
+  step_sleep:
+    path: trainer.step_sleep
+    alias: step-sleep
+    type: float
+    default: 0.05
+    help: Seconds to sleep per epoch (controls simulation speed).
+    level: debug
+    sweepable: false
+    visible: true
+
+presets:
+  quick:
+    description: Fast smoke test — small model, 2 epochs, no sleep.
+    overrides:
+      - model=small
+      - optimizer=adam
+      - trainer.epochs=2
+      - trainer.step_sleep=0.0
+    examples:
+      - uv run examples/sweep_training/app.py model=small optimizer=adam trainer.epochs=2 trainer.step_sleep=0
+  full:
+    description: Full training run — large model, 20 epochs.
+    overrides:
+      - model=large
+      - optimizer=adam
+      - trainer.epochs=20
+      - trainer.step_sleep=0.05
+    examples:
+      - uv run examples/sweep_training/app.py --model large --epochs 20

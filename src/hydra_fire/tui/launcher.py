@@ -18,15 +18,16 @@ from hydra_fire.compose import compose_config, to_yaml
 from hydra_fire.core.overrides import preset_overrides, target_map
 from hydra_fire.core.spec import ArgumentField, ConfigGroup, ConfigSpec
 
-_BASE_HELP_TEXT = """[bold cyan]Type normal CLI arguments, then press Enter.[/bold cyan]
-
-[dim]Examples[/dim]
+_BASE_HELP_TEXT = """[bold cyan]Type CLI arguments to configure a run, then press Enter:[/bold cyan]
   [green]--batch-size 64 --lr 0.01[/green]
   [green]--model large trainer.precision=bf16[/green]
-  [green]--preset quick --steps 100[/green]
 
-[magenta]Tab[/magenta] completes generated options and known choices. [magenta]Arrow keys[/magenta]
-select completion items. Raw Hydra overrides still work.
+[dim]Or type a command to inspect the config:[/dim]
+  [cyan]fields[/cyan]  [cyan]groups[/cyan]  [cyan]recipes[/cyan]
+  [cyan]show [OPTIONS][/cyan]  [cyan]sweep [OPTIONS][/cyan]
+  [cyan]explain <field|group|group=choice|preset>[/cyan]  [cyan]suggest <name>[/cyan]
+
+[magenta]Tab[/magenta] completes commands, options, and choices. [magenta]Ctrl-C[/magenta] exits.
 """
 
 
@@ -52,6 +53,9 @@ PROMPT_STYLE = Style.from_dict(
 )
 
 
+_TUI_COMMANDS = frozenset({"fields", "groups", "recipes", "show", "sweep", "explain", "suggest"})
+
+
 class LauncherCompleter(Completer):
     def __init__(self, spec: ConfigSpec) -> None:
         self.spec = spec
@@ -62,27 +66,155 @@ class LauncherCompleter(Completer):
         current = document.get_word_before_cursor(WORD=True)
         previous = _previous_token(text)
 
+        # Determine which tokens come before the current word.
+        before_current = text[: -len(current)] if current else text
+        try:
+            tokens_so_far = shlex.split(before_current) if before_current.strip() else []
+        except ValueError:
+            tokens_so_far = before_current.split()
+
+        first_token = tokens_so_far[0] if tokens_so_far else None
+
+        # Inside a command invocation — context-specific completions.
+        if first_token in _TUI_COMMANDS:
+            yield from _command_completions(self.spec, first_token, current, previous)
+            return
+
+        # First token position: offer command names alongside override options.
+        if first_token is None:
+            if current.startswith("--"):
+                yield from _option_completions(self.spec, current)
+                return
+            if "=" in current:
+                yield from _key_value_completions(self.spec, current)
+                return
+            if _is_hydra_prefix(current) or "." in current:
+                yield from _raw_override_completions(self.spec, current, include_simple=True)
+                return
+            # Plain text: offer command names first, then raw keys.
+            for cmd in sorted(_TUI_COMMANDS):
+                if cmd.startswith(current):
+                    yield Completion(cmd, start_position=-len(current), display_meta="command")
+            yield from _raw_override_completions(self.spec, current, include_simple=False)
+            return
+
+        # Multi-token override context (first token is not a command).
         if previous == "--preset":
             yield from _matches(self.spec.presets, current)
             return
-
         if previous and previous.startswith("--"):
             yield from _matches(_choices_for_option(self.spec, previous[2:]), current)
             return
-
         if "=" in current:
             yield from _key_value_completions(self.spec, current)
             return
-
         if current.startswith("--"):
             yield from _option_completions(self.spec, current)
             return
-
         if _is_hydra_prefix(current):
             yield from _raw_override_completions(self.spec, current, include_simple=True)
             return
-
         yield from _raw_override_completions(self.spec, current, include_simple=False)
+
+
+def _command_completions(
+    spec: ConfigSpec,
+    command: str,
+    current: str,
+    previous: str | None,
+):
+    """Yield completions for the arguments of a TUI command."""
+    if command == "explain":
+        candidates = (
+            list(spec.fields)
+            + [f.alias for f in spec.fields.values() if f.alias]
+            + list(spec.groups)
+            + list(spec.presets)
+        )
+        for name in sorted(set(candidates)):
+            if name.startswith(current):
+                yield Completion(name, start_position=-len(current))
+        return
+
+    if command in {"show", "sweep"}:
+        if previous == "--preset":
+            yield from _matches(spec.presets, current)
+            return
+        if previous and previous.startswith("--"):
+            yield from _matches(_choices_for_option(spec, previous[2:]), current)
+            return
+        if "=" in current:
+            yield from _key_value_completions(spec, current)
+            return
+        if current.startswith("--"):
+            yield from _option_completions(spec, current)
+            return
+        if _is_hydra_prefix(current) or "." in current:
+            yield from _raw_override_completions(spec, current, include_simple=True)
+            return
+        yield from _raw_override_completions(spec, current, include_simple=False)
+
+
+def _dispatch_tui_command(
+    tokens: list[str],
+    spec: ConfigSpec,
+    console: Console,
+    *,
+    base_path: str | Path | None,
+) -> None:
+    """Execute a discovery command typed in the TUI and print the result."""
+    from hydra_fire.core.overrides import expand_args
+    from hydra_fire.render import (
+        render_explain,
+        render_fields,
+        render_groups,
+        render_preset_list,
+        render_suggest,
+    )
+
+    cmd, *args = tokens
+
+    if cmd == "fields":
+        render_fields(spec, console, include_hidden=True)
+    elif cmd == "groups":
+        render_groups(spec, console, include_hidden=True)
+    elif cmd == "recipes":
+        render_preset_list(spec, console)
+    elif cmd == "show":
+        try:
+            overrides = expand_args(args, spec)
+            cfg = compose_config(
+                spec.hydra.config_path,
+                spec.hydra.config_name,
+                overrides,
+                base_path=base_path,
+            )
+            console.print(to_yaml(cfg))
+        except Exception as exc:
+            console.print(f"[red]{exc}[/red]")
+    elif cmd == "sweep":
+        try:
+            overrides = expand_args(args, spec, sweep=True)
+            console.print(" ".join(["-m", *overrides]))
+        except Exception as exc:
+            console.print(f"[red]{exc}[/red]")
+    elif cmd == "explain":
+        if not args:
+            console.print("[red]explain requires a target[/red]")
+        else:
+            render_explain(
+                spec,
+                args[0],
+                console,
+                config_path=spec.hydra.config_path,
+                config_name=spec.hydra.config_name,
+                base_path=str(base_path) if base_path else None,
+            )
+    elif cmd == "suggest":
+        if not args:
+            console.print("[red]suggest requires a name[/red]")
+        else:
+            render_suggest(spec, args[0], console)
 
 
 def launch_interactive(
@@ -115,6 +247,16 @@ def launch_interactive(
 
         if not line:
             return None
+
+        try:
+            tokens = shlex.split(line)
+        except ValueError:
+            tokens = line.split()
+
+        # Discovery commands print output and loop back without confirmation.
+        if tokens and tokens[0] in _TUI_COMMANDS:
+            _dispatch_tui_command(tokens, spec, active_console, base_path=base_path)
+            continue
 
         try:
             overrides = parse_launch_args(line, spec)

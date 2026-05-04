@@ -1,0 +1,9 @@
+defaults:
+  - model: small
+  - optimizer: adam
+  - _self_
+
+trainer:
+  epochs: 5
+  step_sleep: 0.05
+  seed: 42

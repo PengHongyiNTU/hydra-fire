@@ -12,6 +12,7 @@ entrypoint, and README. All examples can be run from the repository root.
 | [dataclass_schema](dataclass_schema/README.md) | Dataclass schema validation, nested config, debug-level fields. |
 | [hydra_tree](hydra_tree/README.md) | Existing Hydra config tree — groups, curated fields, presets. |
 | [sweep_preview](sweep_preview/README.md) | Hydra multirun translation via comma values and the `sweep` command. |
+| [sweep_training](sweep_training/README.md) | Full sweep example — multiple model/optimizer configs, tqdm progress, live metrics. |
 
 ## Quick Start
 
