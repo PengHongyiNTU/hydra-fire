@@ -211,13 +211,61 @@ Add `public_name: recipe` under the `presets:` key to change `--preset` to
 
 ## Discovery commands
 
+### `explain`
+
+`explain` tells you everything about one named thing: a config field, a config
+group, a specific group choice, or a preset.
+
 ```bash
-hydra-fire recipes --config cli.config.yaml
-hydra-fire explain mnist_vit_lora --config cli.config.yaml
-hydra-fire explain recipe=mnist_vit_lora --config cli.config.yaml
+# Explain a field — works with the path or the CLI alias:
+python app.py explain lr
+python app.py explain --lr        # leading -- is stripped automatically
+python app.py explain batch-size  # alias form
+
+# Explain a config group (shows choices and usage):
+python app.py explain model
+
+# Explain a specific group choice (resolves and prints the full composed config):
+python app.py explain model=small
+
+# Explain a preset (shows description and its Hydra overrides):
+python app.py explain default
+
+# Same forms work via the global CLI:
+hydra-fire explain lr --config cli.config.yaml
+hydra-fire explain model=small --config cli.config.yaml
+hydra-fire explain my_preset --config cli.config.yaml
+```
+
+Field output includes the CLI flag, type, default, visibility level, choices (if
+any), and the exact Hydra override syntax to use when the field is `advanced` or
+`debug`.
+
+Group-choice output resolves the full composed config so you can see exactly what
+Hydra will produce.
+
+### `suggest`
+
+Fuzzy-search across all field names, aliases, group names, and preset names:
+
+```bash
+python app.py suggest learnig   # typo → suggests: lr, learning_rate, …
 hydra-fire suggest learn --config cli.config.yaml
+```
+
+### `fields` filtering
+
+```bash
 hydra-fire fields --level core --config cli.config.yaml
 hydra-fire fields --search learning --config cli.config.yaml
+```
+
+### Other discovery commands
+
+```bash
+hydra-fire recipes --config cli.config.yaml
+hydra-fire fields --config cli.config.yaml
+hydra-fire groups --config cli.config.yaml
 hydra-fire completion bash
 ```
 

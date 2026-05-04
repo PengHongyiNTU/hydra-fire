@@ -26,8 +26,14 @@ def render_decorator_help(
         f"  {prog_name} sweep [OPTIONS] [HYDRA_SWEEPS...]  Print Hydra multirun overrides.",
         markup=False,
     )
-    console.print(f"  {prog_name} explain <target>", markup=False)
-    console.print(f"  {prog_name} suggest <name>", markup=False)
+    console.print(
+        f"  {prog_name} explain <field|group|group=choice|preset>  Show details",
+        markup=False,
+    )
+    console.print(
+        f"  {prog_name} suggest <name>   Fuzzy-find a field, group, or preset",
+        markup=False,
+    )
     console.print(f"  {prog_name} launch", markup=False)
     console.print("")
     console.print("[Examples]")
@@ -345,6 +351,36 @@ def render_groups(spec: ConfigSpec, console: Console, *, include_hidden: bool = 
     console.print(table)
 
 
+def _render_explain_field(field: ArgumentField, console: Console) -> None:
+    level_color = {
+        "core": "green",
+        "common": "cyan",
+        "advanced": "yellow",
+        "debug": "dim",
+        "raw": "dim",
+    }.get(field.level, "white")
+
+    console.print(f"[bold]Field:[/bold] [cyan]{field.path}[/cyan]")
+    if field.alias:
+        console.print(f"  CLI flag : [green]--{field.alias}[/green]")
+    console.print(f"  Type     : {field.type}")
+    console.print(f"  Default  : {field.default!r}")
+    console.print(f"  Level    : [{level_color}]{field.level}[/{level_color}]")
+    if field.choices:
+        console.print(f"  Choices  : {', '.join(field.choices)}")
+    if field.help:
+        console.print(f"  Help     : {field.help}")
+
+    if field.level in ("advanced", "debug"):
+        console.print(
+            f"\n[dim]This field is [{level_color}]{field.level}[/{level_color}][dim] — "
+            f"use raw Hydra override syntax: "
+            f"[cyan]{field.path}=<value>[/cyan][/dim]"
+        )
+    elif field.alias:
+        console.print(f"\n[dim]Usage: [cyan]--{field.alias} <value>[/cyan][/dim]")
+
+
 def render_explain(
     spec: ConfigSpec,
     target: str,
@@ -354,15 +390,29 @@ def render_explain(
     config_name: str = "config",
     base_path: str | None = None,
 ) -> None:
-    """Explain a preset or group=choice target."""
-    if "=" in target:
-        group_name, choice = target.split("=", 1)
+    """Explain a field, group, group=choice, or preset by name.
+
+    Accepted forms:
+      explain lr              # field by path or alias (strips leading --)
+      explain --lr            # same, dashes stripped
+      explain model           # group by name
+      explain model=small     # group choice → show resolved config
+      explain my_preset       # preset by name
+    """
+    from difflib import get_close_matches
+
+    # Strip leading dashes so --lr and lr both work
+    key = target.lstrip("-")
+
+    # --- group=choice ---
+    if "=" in key:
+        group_name, choice = key.split("=", 1)
         group = spec.groups.get(group_name)
         console.print(f"[bold]Group:[/bold] {group_name} = {choice}")
         if group:
-            console.print(f"  Hydra path: {group.hydra_group}={choice}")
+            console.print(f"  Hydra path: [cyan]{group.hydra_group}={choice}[/cyan]")
             if group.choices:
-                console.print(f"  Choices: {', '.join(group.choices)}")
+                console.print(f"  Choices:    {', '.join(group.choices)}")
         if config_path:
             try:
                 from .compose import compose_config, to_yaml
@@ -377,8 +427,52 @@ def render_explain(
                 console.print(to_yaml(cfg))
             except Exception as exc:
                 console.print(f"[yellow]Could not compose config: {exc}[/yellow]")
-    else:
-        render_preset_description(spec, target, console)
+        return
+
+    # --- field by path or alias ---
+    field: ArgumentField | None = spec.fields.get(key)
+    if field is None:
+        for f in spec.fields.values():
+            if f.alias == key:
+                field = f
+                break
+    if field is not None:
+        _render_explain_field(field, console)
+        return
+
+    # --- group by name ---
+    group = spec.groups.get(key)
+    if group is not None:
+        cli_flag = next(iter(group.cli_names), group.name)
+        console.print(f"[bold]Group:[/bold] {group.name}")
+        console.print(f"  CLI flag  : [green]--{cli_flag}[/green]")
+        console.print(f"  Hydra path: [cyan]{group.hydra_group}[/cyan]")
+        if group.choices:
+            console.print(f"  Choices   : {', '.join(group.choices)}")
+        if group.default:
+            console.print(f"  Default   : {group.default}")
+        if group.help:
+            console.print(f"  Help      : {group.help}")
+        console.print(f"\n[dim]Usage: [cyan]--{cli_flag} <choice>[/cyan][/dim]")
+        return
+
+    # --- preset by name ---
+    if key in spec.presets:
+        render_preset_description(spec, key, console)
+        return
+
+    # --- not found ---
+    candidates: list[str] = (
+        list(spec.fields)
+        + [f.alias for f in spec.fields.values() if f.alias]
+        + list(spec.groups)
+        + list(spec.presets)
+    )
+    matches = get_close_matches(key, sorted(set(candidates)), n=3, cutoff=0.4)
+    msg = f"[red]Nothing found for '{target}'.[/red]"
+    if matches:
+        msg += f"  Did you mean: {', '.join(matches)}?"
+    console.print(msg)
 
 
 def render_suggest(spec: ConfigSpec, name: str, console: Console) -> None:

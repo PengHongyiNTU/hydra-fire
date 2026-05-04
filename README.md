@@ -95,6 +95,30 @@ python app.py fields
 python app.py launch
 ```
 
+Use `explain` to inspect any field, group, group choice, or preset by name:
+
+```bash
+# Explain a field (path or alias — leading -- is stripped automatically):
+python app.py explain lr
+python app.py explain --lr
+python app.py explain batch-size
+
+# Explain a config group:
+python app.py explain model
+
+# Explain a specific group choice (resolves + prints the full composed config):
+python app.py explain model=small
+
+# Explain a preset:
+python app.py explain default
+```
+
+Use `suggest` to fuzzy-find a name when you can't remember the exact spelling:
+
+```bash
+python app.py suggest learnig   # → suggests: lr
+```
+
 Friendly options are translated to Hydra overrides, then Hydra composes the
 config and Hydra Fire invokes the function.
 
