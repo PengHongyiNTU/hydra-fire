@@ -1,47 +1,58 @@
 # Hydra Fire Examples
 
-These examples are intentionally small and isolated. Each one has its own
-Hydra config folder, `cli.config.yaml`, Python entrypoint, and README.
+Each example has its own Hydra config folder, `cli.config.yaml`, Python
+entrypoint, and README. All examples can be run from the repository root.
 
 ## Examples
 
 | Example | Demonstrates |
 | --- | --- |
-| [function_signature](function_signature/README.md) | Typed Python function introspection. |
-| [pydantic_schema](pydantic_schema/README.md) | Pydantic validation, docs, choices, and nested fields. |
-| [dataclass_schema](dataclass_schema/README.md) | Dataclass schema validation and nested config. |
-| [hydra_tree](hydra_tree/README.md) | Hydra config groups, discovered fields, and presets. |
-| [sweep_preview](sweep_preview/README.md) | Hydra multirun translation through comma values and `sweep`. |
+| [function_signature](function_signature/README.md) | Typed Python function introspection — flags derived directly from the signature. |
+| [pydantic_schema](pydantic_schema/README.md) | Pydantic validation, field docs, choices, nested fields. |
+| [dataclass_schema](dataclass_schema/README.md) | Dataclass schema validation, nested config, debug-level fields. |
+| [hydra_tree](hydra_tree/README.md) | Existing Hydra config tree — groups, curated fields, presets. |
+| [sweep_preview](sweep_preview/README.md) | Hydra multirun translation via comma values and the `sweep` command. |
 
-## Run
-
-From the repository root:
+## Quick Start
 
 ```bash
-cd examples/function_signature
-python app.py --batch-size 64 --lr 0.01 --debug
+# Run with defaults
+uv run examples/function_signature/app.py
+uv run examples/dataclass_schema/app.py
+uv run examples/hydra_tree/app.py
 
-cd ../pydantic_schema
-python app.py --batch-size 16 --precision fp16 runtime.verbose=true
+# Show help (commands, options, examples)
+uv run examples/hydra_tree/app.py --help
 
-cd ../dataclass_schema
-python app.py --batch-size 24 --precision fp32 runtime.verbose=true
+# Inspect available fields and groups
+uv run examples/hydra_tree/app.py fields
+uv run examples/hydra_tree/app.py groups
 
-cd ../hydra_tree
-python app.py --model large --optimizer sgd trainer.max_steps=50
+# Explain a field, group, group choice, or preset
+uv run examples/hydra_tree/app.py explain model
+uv run examples/hydra_tree/app.py explain model=large
+uv run examples/hydra_tree/app.py explain quick
+uv run examples/dataclass_schema/app.py explain runtime.verbose
 
-cd ../sweep_preview
-python app.py --optimizer adam --lr 0.001 --steps 100
-python app.py --optimizer adam,sgd --lr 1,2,3,4
-python app.py sweep --optimizer adam,sgd --lr 1,2,3,4
-hydra-fire run default --config cli.config.yaml --optimizer adam,sgd --lr 1,2,3,4 --dry-run
-hydra-fire sweep default --config cli.config.yaml --optimizer adam,sgd --lr 1,2,3,4
+# Fuzzy-find a name
+uv run examples/hydra_tree/app.py suggest opt
+
+# Preview sweep overrides
+uv run examples/sweep_preview/app.py sweep --optimizer adam,sgd --lr 0.001,0.01
+
+# Open the interactive launcher
+uv run examples/hydra_tree/app.py launch
 ```
 
-The global preview CLI can also inspect examples:
+## Global CLI
+
+The `hydra-fire` command works with any `cli.config.yaml`:
 
 ```bash
 hydra-fire fields --config examples/hydra_tree/cli.config.yaml
-hydra-fire run quick --config examples/hydra_tree/cli.config.yaml --steps 20 --dry-run
+hydra-fire groups --config examples/hydra_tree/cli.config.yaml
 hydra-fire show quick --config examples/hydra_tree/cli.config.yaml --steps 20
+hydra-fire run quick --config examples/hydra_tree/cli.config.yaml --steps 20 --dry-run
+hydra-fire sweep default --config examples/hydra_tree/cli.config.yaml --model small,large
+hydra-fire launch --config examples/hydra_tree/cli.config.yaml
 ```
