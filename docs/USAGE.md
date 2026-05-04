@@ -305,18 +305,30 @@ Launch interactively:
 hydra-fire launch --config cli.config.yaml
 ```
 
-## GitHub Installation
+## Installation
 
-The first release is distributed from GitHub, not PyPI.
+Hydra Fire is distributed from GitHub. There is no PyPI package.
 
-```bash
-uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
-```
-
-or:
+**Stable release (v0.2.0):**
 
 ```bash
-pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.2.0"
 ```
 
-Use `@master` or omit the tag if you want the latest repository state.
+```bash
+pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.2.0"
+```
+
+**Latest master:**
+
+```bash
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
+```
+
+**Local editable install** (changes to the source take effect immediately):
+
+```bash
+uv add --editable /path/to/hydra-fire
+# or
+pip install -e /path/to/hydra-fire
+```

@@ -44,27 +44,35 @@ experiment projects. There is no PyPI package for this release.
 
 ## Install
 
-Install from GitHub:
+**Stable release (v0.2.0):**
 
 ```bash
-uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
+uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.2.0"
 ```
-
-or:
 
 ```bash
-pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.1.0"
+pip install "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git@v0.2.0"
 ```
 
-Install the latest `master` version directly from GitHub:
+**Latest master:**
 
 ```bash
 uv add "hydra-fire @ git+https://github.com/PengHongyiNTU/hydra-fire.git"
 ```
 
-For development from a local checkout:
+**Local editable install** (use this when working on hydra-fire itself):
 
 ```bash
+uv add --editable /path/to/hydra-fire
+# or
+pip install -e /path/to/hydra-fire
+```
+
+**Development checkout:**
+
+```bash
+git clone https://github.com/PengHongyiNTU/hydra-fire.git
+cd hydra-fire
 uv sync
 ```
 
