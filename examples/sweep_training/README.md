@@ -56,27 +56,37 @@ The function returns compact JSON:
 
 ## Sweep preview
 
-Comma-separated values on any lifted option print the Hydra multirun override list:
+Hydra Fire translates sweep args and prints the Hydra command — it does not
+execute sweeps. Copy the printed command and run it with `@hydra.main`.
+
+Comma values on any lifted option print an instruction panel:
 
 ```bash
-# Two models × two learning rates = 4 runs
+# Two models × two learning rates
 uv run examples/sweep_training/app.py --model small,large --lr 0.001,0.01
-# Output: -m model=small,large optimizer.lr=0.001,0.01
-
-# All four optimizer × lr combinations
-uv run examples/sweep_training/app.py --optimizer adam,sgd --lr 0.001,0.01,0.1
-# Output: -m optimizer=adam,sgd optimizer.lr=0.001,0.01,0.1
-
-# Explicit sweep command (equivalent):
-uv run examples/sweep_training/app.py sweep --model small,large --optimizer adam,sgd
-# Output: -m model=small,large optimizer=adam,sgd
 ```
 
-Pass the output to Hydra's multirun launcher to actually execute the sweep:
+```
+╭─── Hydra multirun ─────────────────────────────────────────────────╮
+│ python app.py -m model=small,large optimizer.lr=0.001,0.01          │
+│                                                                     │
+│ hydra-fire translates your flags — Hydra runs the sweep.            │
+│ Requires @hydra.main in your script for full multirun support.      │
+│                                                                     │
+│ To parallelize or run on a cluster, append a launcher:              │
+│   hydra/launcher=joblib     parallel on this machine                │
+│   hydra/launcher=submitit   SLURM / cluster                         │
+╰─────────────────────────────────────────────────────────────────────╯
+```
+
+The `sweep` sub-command prints just the bare `-m` string — useful in scripts:
 
 ```bash
-# Hydra multirun: runs each combination as a separate process
-python -m your_app --multirun model=small,large optimizer.lr=0.001,0.01
+uv run examples/sweep_training/app.py sweep --model small,large --optimizer adam,sgd
+# -m model=small,large optimizer=adam,sgd
+
+uv run examples/sweep_training/app.py sweep --optimizer adam,sgd --lr 0.001,0.01,0.1
+# -m optimizer=adam,sgd optimizer.lr=0.001,0.01,0.1
 ```
 
 ## Discover
@@ -132,13 +142,17 @@ uv run examples/sweep_training/app.py launch
 ```
 
 In the launcher, type discovery commands to inspect the config before committing
-to a run — the prompt loops back after each command:
+— the prompt loops back after each command:
 
 ```
-sweep-training › explain model=large      # prints resolved config, re-prompts
-sweep-training › fields                   # prints field table, re-prompts
-sweep-training › --model large --lr 0.01  # ready to run — shows preview + confirm
+sweep-training › explain model=large           # prints resolved config, re-prompts
+sweep-training › fields                        # prints field table, re-prompts
+sweep-training › --model large --lr 0.01       # single run — preview + confirm → executes
+sweep-training › --model small,large --lr 0.01 # sweep — preview + confirm → prints command
 ```
+
+Single-run confirmations execute directly. Sweep confirmations print the Hydra
+`-m` command with launcher hints for you to run.
 
 Tab completes commands, option names, group choices, and field aliases.
 

@@ -107,29 +107,41 @@ python app.py ~callbacks.tensorboard
 
 ## Sweep And Multirun
 
-Lifted options support comma shorthand:
+Hydra Fire translates friendly flags to Hydra multirun syntax but does not
+execute sweeps. It prints the command for you to run — Hydra owns execution.
+
+Comma values on lifted options print an instruction panel:
 
 ```bash
 python app.py --lr 1e-4,3e-4,1e-3
+python app.py -m --lr 1e-4,3e-4,1e-3
 ```
 
-The explicit command form is:
+Output (panel form):
+```
+╭─── Hydra multirun ─────────────────────────────────────────────────╮
+│ python app.py -m optimizer.lr=1e-4,3e-4,1e-3                       │
+│                                                                     │
+│ hydra-fire translates your flags — Hydra runs the sweep.            │
+│ Requires @hydra.main in your script for full multirun support.      │
+│                                                                     │
+│ To parallelize or run on a cluster, append a launcher:              │
+│   hydra/launcher=joblib     parallel on this machine                │
+│   hydra/launcher=submitit   SLURM / cluster                         │
+╰─────────────────────────────────────────────────────────────────────╯
+```
+
+The `sweep` sub-command prints the bare `-m` string (no panel) — suited for
+scripts and piping:
 
 ```bash
 python app.py sweep --lr 1e-4,3e-4,1e-3
+# -m optimizer.lr=1e-4,3e-4,1e-3
 ```
 
-Both print Hydra multirun syntax:
-
-```text
--m optimizer.lr=1e-4,3e-4,1e-3
-```
-
-For raw Hydra overrides, use Hydra's multirun flag:
-
-```bash
-python app.py --multirun optimizer.lr=1e-4,3e-4,1e-3
-```
+The interactive launcher (`launch`) lets you interactively configure a sweep and
+then generates the command. Single-run confirmations in the launcher execute
+directly.
 
 ## Curated CLI Config
 

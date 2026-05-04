@@ -18,25 +18,36 @@ Expected output:
 
 ## Sweep Preview
 
-Comma values on any lifted option trigger multirun translation:
+Hydra Fire translates sweep args and prints the Hydra command — it does not
+execute sweeps. Copy the printed command and run it with `@hydra.main`.
+
+Comma values on any lifted option print a Hydra multirun instruction panel:
 
 ```bash
 uv run examples/sweep_preview/app.py --optimizer adam,sgd --lr 1e-4,1e-3
-# Output: -m optimizer=adam,sgd optimizer.lr=1e-4,1e-3
 ```
 
-The explicit `sweep` command is equivalent and clearer in scripts:
+```
+╭─── Hydra multirun ─────────────────────────────────────────────────╮
+│ python app.py -m optimizer=adam,sgd optimizer.lr=1e-4,1e-3          │
+│                                                                     │
+│ hydra-fire translates your flags — Hydra runs the sweep.            │
+│ Requires @hydra.main in your script for full multirun support.      │
+│                                                                     │
+│ To parallelize or run on a cluster, append a launcher:              │
+│   hydra/launcher=joblib     parallel on this machine                │
+│   hydra/launcher=submitit   SLURM / cluster                         │
+╰─────────────────────────────────────────────────────────────────────╯
+```
+
+The `sweep` sub-command prints just the bare `-m` string — useful in scripts:
 
 ```bash
 uv run examples/sweep_preview/app.py sweep --optimizer adam,sgd --lr 1e-4,1e-3
-# Output: -m optimizer=adam,sgd optimizer.lr=1e-4,1e-3
-```
+# -m optimizer=adam,sgd optimizer.lr=1e-4,1e-3
 
-Sweep multiple axes together:
-
-```bash
 uv run examples/sweep_preview/app.py sweep --optimizer adam,sgd --lr 0.001,0.01 --steps 50,100
-# Output: -m optimizer=adam,sgd optimizer.lr=0.001,0.01 trainer.max_steps=50,100
+# -m optimizer=adam,sgd optimizer.lr=0.001,0.01 trainer.max_steps=50,100
 ```
 
 Raw Hydra multirun syntax also works:

@@ -239,35 +239,45 @@ docs, or the launcher to discover the larger config surface.
 
 ## Sweep And Multirun
 
-In Hydra Fire, `sweep` explicitly means Hydra multirun translation.
+Hydra Fire is a CLI ergonomics and translation layer. It does not execute sweeps.
+It translates friendly flags to Hydra multirun syntax and shows you exactly what
+to run — Hydra owns execution.
 
-Lifted CLI options support comma shorthand:
+Comma values on lifted options trigger translation and print an instruction panel:
 
 ```bash
 python app.py --lr 1e-4,3e-4,1e-3
 ```
 
-Output:
-
-```text
--m optimizer.lr=1e-4,3e-4,1e-3
+```
+╭─── Hydra multirun ─────────────────────────────────────────────────╮
+│ python app.py -m optimizer.lr=1e-4,3e-4,1e-3                       │
+│                                                                     │
+│ hydra-fire translates your flags — Hydra runs the sweep.            │
+│ Requires @hydra.main in your script for full multirun support.      │
+│                                                                     │
+│ To parallelize or run on a cluster, append a launcher:              │
+│   hydra/launcher=joblib     parallel on this machine                │
+│   hydra/launcher=submitit   SLURM / cluster                         │
+╰─────────────────────────────────────────────────────────────────────╯
 ```
 
-The explicit command form is equivalent and more readable in scripts:
+The `sweep` sub-command is the script-friendly form — prints the bare `-m` string
+with no panel, suitable for piping or scripting:
 
 ```bash
 python app.py sweep --lr 1e-4,3e-4,1e-3
+# Output: -m optimizer.lr=1e-4,3e-4,1e-3
 ```
 
-Raw Hydra overrides can use Hydra's explicit multirun flag:
+The `-m` / `--multirun` flag works the same as comma values:
 
 ```bash
-python app.py --multirun optimizer.lr=1e-4,3e-4,1e-3
-python app.py -m optimizer.lr=1e-4,3e-4,1e-3
+python app.py -m --lr 1e-4,3e-4,1e-3
 ```
 
-Hydra Fire does not execute sweeps itself. It prints the Hydra multirun override
-list so Hydra-owned launchers or callers can execute the multirun.
+The interactive launcher (`launch`) lets you configure a sweep interactively and
+then generates the command for you to run.
 
 ## Global CLI
 

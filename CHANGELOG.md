@@ -27,6 +27,30 @@ explicitly declared fields and groups are shown in help output.
 - `render_groups` table now shows a `Target` column.
 - `PresetConfig` and `RunMode` exported from the public API.
 
+### Sweep design — translator model
+
+Hydra Fire now positions itself as a **CLI translator and interactive launcher**,
+not a sweep execution engine.
+
+- **Single runs** are executed directly via the Hydra composition API
+  (`initialize_config_dir` + `compose`), which is semantically equivalent to
+  `@hydra.main` for single-point evaluation.
+- **Sweep / multirun**: Hydra Fire translates friendly comma flags to Hydra
+  `-m` override syntax, prints a Rich panel with the exact command and launcher
+  plugin hints, then exits. Hydra's own `BasicSweeper` — accessible only through
+  `@hydra.main --multirun` — is responsible for execution, output directories,
+  per-run logging, and launcher plugins (joblib, submitit).
+- **`_print_sweep_command`** renders a `╭─── Hydra multirun ───╮` panel showing
+  the full `-m` command and copy-paste launcher hints.
+- The `sweep` sub-command (script CLI and TUI) remains preview-only: it prints
+  the bare `-m` string for scripting/piping.
+- The interactive launcher `launch` sweep-confirm prompt now reads "Generate
+  sweep command for N combinations?" — it prints the command rather than running
+  jobs.
+- `_run_sweep` (in-process Cartesian-product loop) removed.
+- `expand_sweep_combinations` moved to `src/hydra_fire/core/overrides.py` as a
+  public utility, used by the TUI for sweep-preview panels.
+
 ### Behavior changes
 
 - **Breaking**: Pydantic and dataclass schema fields now default to
