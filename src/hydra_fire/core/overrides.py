@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 
 from .errors import (
@@ -150,6 +151,46 @@ def _validate_choice(name: str, value: str, target: OverrideTarget, *, sweep: bo
         raise InvalidChoiceError(
             f"Invalid value for {label} '{name}': {invalid}. Choices: {formatted}"
         )
+
+
+def expand_sweep_combinations(overrides: list[str]) -> list[list[str]]:
+    """Expand comma-sweep overrides into the Cartesian product of single-value combinations.
+
+    ["model=small,large", "optimizer.lr=0.001,0.01"] ->
+    [["model=small", "optimizer.lr=0.001"],
+     ["model=small", "optimizer.lr=0.01"],
+     ["model=large", "optimizer.lr=0.001"],
+     ["model=large", "optimizer.lr=0.01"]]
+
+    Returns [] when no sweep values are present.
+    """
+    per_override: list[list[str]] = []
+    has_sweep = False
+    for override in overrides:
+        prefix, raw = _split_hydra_prefix(override)
+        if "=" not in raw:
+            per_override.append([override])
+            continue
+        key, _, value = raw.partition("=")
+        if "," in value and not value.startswith(("[", "{", "'", '"')):
+            values = [v.strip() for v in value.split(",")]
+            per_override.append([f"{prefix}{key}={v}" for v in values])
+            has_sweep = True
+        else:
+            per_override.append([override])
+    if not has_sweep:
+        return []
+    return [list(combo) for combo in itertools.product(*per_override)]
+
+
+def _split_hydra_prefix(value: str) -> tuple[str, str]:
+    if value.startswith("++"):
+        return "++", value[2:]
+    if value.startswith("+"):
+        return "+", value[1:]
+    if value.startswith("~"):
+        return "~", value[1:]
+    return "", value
 
 
 def _quote_single_run_comma_value(value: str, target: OverrideTarget, *, sweep: bool) -> str:

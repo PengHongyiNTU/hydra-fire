@@ -15,7 +15,7 @@ from rich.rule import Rule
 from .compose import compose_config, to_yaml
 from .core.config import ensure_cli_config
 from .core.errors import AmbiguousSweepValueError, HydraFireError
-from .core.overrides import expand_args, target_map
+from .core.overrides import expand_args, expand_sweep_combinations, target_map
 from .render import (
     render_decorator_help,
     render_explain,
@@ -89,7 +89,14 @@ def hydra_fire(
                 smart_multirun = multirun or _has_friendly_comma_sweep(raw_args, spec)
                 overrides = expand_args(raw_args, spec, sweep=smart_multirun)
                 if smart_multirun:
-                    Console().print(" ".join(["-m", *overrides]))
+                    _run_sweep(
+                        expand_sweep_combinations(overrides),
+                        func=func,
+                        config_path=config_path,
+                        config_name=config_name,
+                        base_path=config_path_obj.parent,
+                        schema=schema,
+                    )
                     raise SystemExit(0)
                 _raise_on_ambiguous_comma_values(overrides, spec)
                 cfg = compose_config(

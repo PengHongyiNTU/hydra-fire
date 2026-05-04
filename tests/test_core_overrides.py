@@ -6,7 +6,7 @@ from hydra_fire.core.errors import (
     NonSweepableFieldError,
     UnknownArgumentError,
 )
-from hydra_fire.core.overrides import expand_args, preset_overrides
+from hydra_fire.core.overrides import expand_args, expand_sweep_combinations, preset_overrides
 from hydra_fire.core.spec import ArgumentField, ConfigGroup, ConfigSpec, Preset
 
 
@@ -169,3 +169,29 @@ def test_preset_aliases_do_not_apply_to_key_value_tokens():
     )
 
     assert expand_args(["size=2"], spec, preset="compact") == ["size=2"]
+
+
+def test_expand_sweep_combinations_returns_cartesian_product():
+    result = expand_sweep_combinations(["model=small,large", "optimizer.lr=0.001,0.01"])
+    assert sorted(result) == sorted(
+        [
+            ["model=small", "optimizer.lr=0.001"],
+            ["model=small", "optimizer.lr=0.01"],
+            ["model=large", "optimizer.lr=0.001"],
+            ["model=large", "optimizer.lr=0.01"],
+        ]
+    )
+
+
+def test_expand_sweep_combinations_returns_empty_when_no_commas():
+    assert expand_sweep_combinations(["model=small", "optimizer.lr=0.001"]) == []
+
+
+def test_expand_sweep_combinations_preserves_hydra_list_syntax():
+    result = expand_sweep_combinations(["values=[1,2,3]"])
+    assert result == []  # bracket syntax is not a sweep
+
+
+def test_expand_sweep_combinations_preserves_hydra_prefix():
+    result = expand_sweep_combinations(["++model=small,large"])
+    assert result == [["++model=small"], ["++model=large"]]

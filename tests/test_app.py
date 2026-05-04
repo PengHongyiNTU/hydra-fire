@@ -96,11 +96,13 @@ def test_hydra_fire_decorator_prints_help_for_script_entrypoints(
     assert "--show-completion" not in output
 
 
-def test_hydra_fire_decorator_treats_friendly_comma_values_as_multirun(tmp_path, capsys):
+def test_hydra_fire_decorator_cli_comma_sweep_runs_all_combinations(tmp_path):
     cli_config = tmp_path / "cli.config.yaml"
     configs = tmp_path / "configs"
     configs.mkdir()
     (configs / "config.yaml").write_text("lr: 0.001\n")
+
+    seen: list[float] = []
 
     @hydra_fire(
         config_path=str(configs),
@@ -108,14 +110,14 @@ def test_hydra_fire_decorator_treats_friendly_comma_values_as_multirun(tmp_path,
         cli_config=str(cli_config),
     )
     def main(lr: float = 0.001):
+        seen.append(lr)
         return lr
 
     with pytest.raises(SystemExit) as excinfo:
         main(["--lr", "1,2,3"])
 
-    output = capsys.readouterr().out
     assert excinfo.value.code == 0
-    assert "-m lr=1,2,3" in output
+    assert seen == [1.0, 2.0, 3.0]
 
 
 def test_hydra_fire_decorator_reports_raw_comma_values_before_hydra(tmp_path, capsys):
@@ -180,11 +182,13 @@ def test_hydra_fire_decorator_allows_non_sweepable_string_commas(tmp_path):
     assert main(["--name", "Smith, John"]) == "Smith, John"
 
 
-def test_hydra_fire_decorator_multirun_prints_hydra_overrides(tmp_path, capsys):
+def test_hydra_fire_decorator_multirun_flag_runs_cartesian_product(tmp_path):
     cli_config = tmp_path / "cli.config.yaml"
     configs = tmp_path / "configs"
     configs.mkdir()
     (configs / "config.yaml").write_text("lr: 0.001\nsteps: 10\n")
+
+    seen: list[tuple[float, int]] = []
 
     @hydra_fire(
         config_path=str(configs),
@@ -192,14 +196,16 @@ def test_hydra_fire_decorator_multirun_prints_hydra_overrides(tmp_path, capsys):
         cli_config=str(cli_config),
     )
     def main(lr: float = 0.001, steps: int = 10):
+        seen.append((lr, steps))
         return lr, steps
 
     with pytest.raises(SystemExit) as excinfo:
         main(["--multirun", "--lr", "1,2,3", "--steps", "10,20"])
 
-    output = capsys.readouterr().out
     assert excinfo.value.code == 0
-    assert "-m lr=1,2,3 steps=10,20" in output
+    assert len(seen) == 6  # 3 lr values × 2 steps values
+    assert (1.0, 10) in seen
+    assert (3.0, 20) in seen
 
 
 def test_hydra_fire_decorator_sweep_command_prints_hydra_overrides(tmp_path, capsys):
