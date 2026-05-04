@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from hydra_fire import hydra_fire
+
+_HERE = Path(__file__).parent
 
 
 class RuntimeConfig(BaseModel):
@@ -21,9 +24,9 @@ class TrainConfig(BaseModel):
 
 
 @hydra_fire(
-    config_path="configs",
+    config_path=str(_HERE / "configs"),
     config_name="config",
-    cli_config="cli.config.yaml",
+    cli_config=str(_HERE / "cli.config.yaml"),
     schema=TrainConfig,
 )
 def main(cfg: TrainConfig) -> dict[str, object]:

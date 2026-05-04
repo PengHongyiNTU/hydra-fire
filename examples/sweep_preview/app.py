@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from omegaconf import DictConfig
 
 from hydra_fire import hydra_fire
 
+_HERE = Path(__file__).parent
+
 
 @hydra_fire(
-    config_path="configs",
+    config_path=str(_HERE / "configs"),
     config_name="config",
-    cli_config="cli.config.yaml",
+    cli_config=str(_HERE / "cli.config.yaml"),
 )
 def main(cfg: DictConfig) -> dict[str, object]:
     return {

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Literal
 
 from hydra_fire import hydra_fire
+
+_HERE = Path(__file__).parent
 
 
 @dataclass
@@ -25,9 +28,9 @@ class TrainConfig:
 
 
 @hydra_fire(
-    config_path="configs",
+    config_path=str(_HERE / "configs"),
     config_name="config",
-    cli_config="cli.config.yaml",
+    cli_config=str(_HERE / "cli.config.yaml"),
     schema=TrainConfig,
 )
 def main(cfg: TrainConfig) -> dict[str, object]:
