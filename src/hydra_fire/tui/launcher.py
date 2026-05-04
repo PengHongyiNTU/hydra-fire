@@ -347,12 +347,11 @@ def _preview_sweep(
 
 
 def _confirm_sweep(session: PromptSession[str], n: int) -> bool:
+    prompt_text = HTML(
+        f"<ansigreen>Generate sweep command for {n} combinations?</ansigreen> [y/N] "
+    )
     try:
-        answer = (
-            session.prompt(HTML(f"<ansigreen>Run all {n} combinations?</ansigreen> [y/N] "))
-            .strip()
-            .lower()
-        )
+        answer = session.prompt(prompt_text).strip().lower()
     except (EOFError, KeyboardInterrupt):
         return False
     return answer in {"y", "yes"}

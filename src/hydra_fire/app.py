@@ -10,12 +10,12 @@ from typing import Any
 
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
-from rich.rule import Rule
+from rich.panel import Panel
 
 from .compose import compose_config, to_yaml
 from .core.config import ensure_cli_config
 from .core.errors import AmbiguousSweepValueError, HydraFireError
-from .core.overrides import expand_args, expand_sweep_combinations, target_map
+from .core.overrides import expand_args, target_map
 from .render import (
     render_decorator_help,
     render_explain,
@@ -63,14 +63,7 @@ def hydra_fire(
                 if launch_result is None:
                     raise SystemExit(1)
                 if launch_result.is_sweep:
-                    _run_sweep(
-                        launch_result.sweep_combinations,
-                        func=func,
-                        config_path=config_path,
-                        config_name=config_name,
-                        base_path=config_path_obj.parent,
-                        schema=schema,
-                    )
+                    _print_sweep_command(launch_result.overrides, prog=_script_prog_name())
                     raise SystemExit(0)
                 raw_args = launch_result.overrides
 
@@ -89,14 +82,7 @@ def hydra_fire(
                 smart_multirun = multirun or _has_friendly_comma_sweep(raw_args, spec)
                 overrides = expand_args(raw_args, spec, sweep=smart_multirun)
                 if smart_multirun:
-                    _run_sweep(
-                        expand_sweep_combinations(overrides),
-                        func=func,
-                        config_path=config_path,
-                        config_name=config_name,
-                        base_path=config_path_obj.parent,
-                        schema=schema,
-                    )
+                    _print_sweep_command(overrides, prog=_script_prog_name())
                     raise SystemExit(0)
                 _raise_on_ambiguous_comma_values(overrides, spec)
                 cfg = compose_config(
@@ -115,6 +101,19 @@ def hydra_fire(
         return wrapper
 
     return decorator
+
+
+def _print_sweep_command(overrides: list[str], *, prog: str) -> None:
+    cmd = f"{prog} -m {' '.join(overrides)}"
+    body = (
+        f"[bold green]{cmd}[/bold green]\n\n"
+        "[dim]hydra-fire translates your flags — Hydra runs the sweep.[/dim]\n"
+        "[dim]Requires [bold]@hydra.main[/bold] in your script for full multirun support.[/dim]\n\n"
+        "[dim]To parallelize or run on a cluster, append a launcher:[/dim]\n"
+        "[dim]  [cyan]hydra/launcher=joblib[/cyan]     parallel on this machine[/dim]\n"
+        "[dim]  [cyan]hydra/launcher=submitit[/cyan]   SLURM / cluster[/dim]"
+    )
+    Console().print(Panel(body, title="[bold]Hydra multirun[/bold]", border_style="cyan"))
 
 
 class CommandResult:
@@ -272,8 +271,7 @@ def _raise_on_ambiguous_comma_values(overrides: list[str], spec: Any) -> None:
                 "Comma values look like Hydra multirun syntax, but decorated "
                 "entrypoints compose one config at a time.\n\n"
                 f"Problem override: {key}={value}\n\n"
-                "Use `sweep`, `--multirun`, or `-m` to preview the Hydra multirun "
-                "override list. "
+                "Use `sweep`, `--multirun`, or `-m` to get the Hydra multirun command. "
                 "If the target field is a list, use Hydra list syntax such as "
                 "`key=[1,2,3]`."
             )
@@ -357,34 +355,3 @@ def _select_value(cfg: DictConfig, parameter_name: str, *, default: Any) -> Any:
     if "__" in parameter_name:
         return OmegaConf.select(cfg, parameter_name.replace("__", "."), default=default)
     return default
-
-
-def _run_sweep(
-    combinations: list[list[str]],
-    *,
-    func: Callable[..., Any],
-    config_path: str,
-    config_name: str,
-    base_path: Path,
-    schema: type[Any] | None,
-) -> None:
-    import json
-
-    sweep_console = Console()
-    total = len(combinations)
-    for i, combination in enumerate(combinations, 1):
-        label = f"[bold cyan]Run {i}/{total}[/bold cyan]  {' '.join(combination)}"
-        sweep_console.print(Rule(label))
-        try:
-            cfg = compose_config(config_path, config_name, combination, base_path=base_path)
-            if schema is not None:
-                cfg = validate_config(cfg, schema)
-            result = _invoke(func, cfg)
-            if result is not None:
-                try:
-                    sweep_console.print(json.dumps(result, separators=(",", ":")))
-                except (TypeError, ValueError):
-                    sweep_console.print(str(result))
-        except Exception as exc:
-            _print_expected_error(exc)
-            raise SystemExit(1) from exc

@@ -162,7 +162,7 @@ def test_sweep_preview_global_sweep_alias_preserves_hydra_sweep_syntax():
     assert "-m optimizer=adam,sgd optimizer.lr=1,2" in result.output
 
 
-def test_sweep_preview_decorated_cli_comma_values_run_all_combinations():
+def test_sweep_preview_decorated_cli_preserves_hydra_sweep_syntax():
     example_dir = EXAMPLES / "sweep_preview"
     env = {
         **os.environ,
@@ -184,11 +184,7 @@ def test_sweep_preview_decorated_cli_comma_values_run_all_combinations():
         capture_output=True,
     )
 
-    # All 4 combinations should run (adam×1, adam×2, sgd×1, sgd×2).
-    assert "Run 1/4" in completed.stdout
-    assert "Run 4/4" in completed.stdout
-    assert '"optimizer":"adam"' in completed.stdout
-    assert '"optimizer":"sgd"' in completed.stdout
+    assert "-m optimizer=adam,sgd optimizer.lr=1,2" in completed.stdout
 
 
 def test_sweep_preview_decorated_sweep_alias_preserves_hydra_sweep_syntax():
