@@ -182,10 +182,13 @@ def launch(
     config: Path = CONFIG_OPTION,
 ) -> None:
     spec = _spec(config)
-    overrides = launch_interactive(spec, console=console, base_path=config.parent)
-    if overrides is None:
+    result = launch_interactive(spec, console=console, base_path=config.parent)
+    if result is None:
         raise typer.Exit(1)
-    console.print(" ".join(overrides))
+    if result.is_sweep:
+        console.print(" ".join(["-m", *result.overrides]))
+    else:
+        console.print(" ".join(result.overrides))
 
 
 @app.command()

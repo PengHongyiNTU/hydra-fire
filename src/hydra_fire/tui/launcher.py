@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import itertools
 import shlex
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
@@ -17,6 +19,18 @@ from rich.text import Text
 from hydra_fire.compose import compose_config, to_yaml
 from hydra_fire.core.overrides import preset_overrides, target_map
 from hydra_fire.core.spec import ArgumentField, ConfigGroup, ConfigSpec
+
+
+@dataclass
+class LaunchResult:
+    """Carries the result of a TUI launcher session."""
+
+    overrides: list[str]
+    sweep_combinations: list[list[str]] = field(default_factory=list)
+
+    @property
+    def is_sweep(self) -> bool:
+        return bool(self.sweep_combinations)
 
 _BASE_HELP_TEXT = """[bold cyan]Type CLI arguments to configure a run, then press Enter:[/bold cyan]
   [green]--batch-size 64 --lr 0.01[/green]
@@ -222,7 +236,7 @@ def launch_interactive(
     *,
     console: Console | None = None,
     base_path: str | Path | None = None,
-) -> list[str] | None:
+) -> LaunchResult | None:
     active_console = console or Console()
     session: PromptSession[str] = PromptSession(
         completer=LauncherCompleter(spec),
@@ -260,24 +274,119 @@ def launch_interactive(
 
         try:
             overrides = parse_launch_args(line, spec)
-            _preview(overrides, spec, active_console, base_path=base_path)
+            combinations = _expand_sweep_combinations(overrides)
         except Exception as exc:
             active_console.print(f"[red]{exc}[/red]")
             continue
 
-        if _confirm(session):
-            return overrides
+        if combinations:
+            # Sweep mode: list all combos + first-config preview, then confirm.
+            _preview_sweep(combinations, spec, active_console, base_path=base_path)
+            if _confirm_sweep(session, len(combinations)):
+                return LaunchResult(overrides=overrides, sweep_combinations=combinations)
+        else:
+            # Single run: show composed config preview, then confirm.
+            try:
+                _preview(overrides, spec, active_console, base_path=base_path)
+            except Exception as exc:
+                active_console.print(f"[red]{exc}[/red]")
+                continue
+            if _confirm(session):
+                return LaunchResult(overrides=overrides)
 
 
 def parse_launch_args(line: str, spec: ConfigSpec) -> list[str]:
+    from hydra_fire.core.overrides import expand_args
+
     args = shlex.split(line)
     preset, remaining = _extract_preset(args)
     _reject_friendly_key_value_aliases(remaining, spec, preset=preset)
+    # Always parse with sweep=True so comma-separated group choices validate correctly.
     if preset is None:
-        from hydra_fire.core.overrides import expand_args
+        return expand_args(remaining, spec, sweep=True)
+    return preset_overrides(spec, preset, remaining, sweep=True)
 
-        return expand_args(remaining, spec)
-    return preset_overrides(spec, preset, remaining)
+
+def _expand_sweep_combinations(overrides: list[str]) -> list[list[str]]:
+    """Expand comma-sweep overrides into the Cartesian product of single-value overrides.
+
+    ["model=small,large", "optimizer.lr=0.001,0.01"] →
+    [["model=small", "optimizer.lr=0.001"],
+     ["model=small", "optimizer.lr=0.01"],
+     ["model=large", "optimizer.lr=0.001"],
+     ["model=large", "optimizer.lr=0.01"]]
+
+    Returns [] when no sweep values are present.
+    """
+    per_override: list[list[str]] = []
+    has_sweep = False
+    for override in overrides:
+        prefix, raw = _split_hydra_prefix(override)
+        if "=" not in raw:
+            per_override.append([override])
+            continue
+        key, _, value = raw.partition("=")
+        if "," in value and not value.startswith(("[", "{", "'", '"')):
+            values = [v.strip() for v in value.split(",")]
+            per_override.append([f"{prefix}{key}={v}" for v in values])
+            has_sweep = True
+        else:
+            per_override.append([override])
+    if not has_sweep:
+        return []
+    return [list(combo) for combo in itertools.product(*per_override)]
+
+
+def _preview_sweep(
+    combinations: list[list[str]],
+    spec: ConfigSpec,
+    console: Console,
+    *,
+    base_path: str | Path | None,
+) -> None:
+    lines = [
+        f"  [dim]{i}.[/dim] [green]{' '.join(c)}[/green]"
+        for i, c in enumerate(combinations, 1)
+    ]
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title=f"[bold green]Sweep — {len(combinations)} combinations[/bold green]",
+            border_style="green",
+            expand=False,
+        )
+    )
+    # Show the first combination's resolved config as a preview.
+    if combinations:
+        try:
+            cfg = compose_config(
+                spec.hydra.config_path,
+                spec.hydra.config_name,
+                combinations[0],
+                base_path=base_path,
+            )
+            console.print(
+                Panel(
+                    to_yaml(cfg),
+                    title="[bold cyan]Config preview (combination 1)[/bold cyan]",
+                    border_style="cyan",
+                    expand=False,
+                )
+            )
+        except Exception as exc:
+            console.print(f"[yellow]Config preview unavailable: {exc}[/yellow]")
+
+
+def _confirm_sweep(session: PromptSession[str], n: int) -> bool:
+    try:
+        answer = (
+            session.prompt(HTML(f"<ansigreen>Run all {n} combinations?</ansigreen> [y/N] "))
+            .strip()
+            .lower()
+        )
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return answer in {"y", "yes"}
 
 
 def _extract_preset(args: list[str]) -> tuple[str | None, list[str]]:
@@ -401,12 +510,12 @@ def _raw_key_names(spec: ConfigSpec) -> list[str]:
 
 def _raw_field_names(spec: ConfigSpec, *, include_simple: bool) -> list[str]:
     names: list[str] = []
-    for field in spec.fields.values():
-        if not field.visible:
+    for f in spec.fields.values():
+        if not f.visible:
             continue
-        if not include_simple and "." not in field.path:
+        if not include_simple and "." not in f.path:
             continue
-        names.append(f"{field.path}=")
+        names.append(f"{f.path}=")
     return sorted(set(names))
 
 
@@ -478,9 +587,9 @@ def _option_metadata(spec: ConfigSpec) -> dict[str, str]:
 
 def _raw_metadata(spec: ConfigSpec) -> dict[str, str]:
     metadata: dict[str, str] = {}
-    for field in spec.fields.values():
-        if field.visible:
-            metadata[field.path] = _field_meta(field)
+    for f in spec.fields.values():
+        if f.visible:
+            metadata[f.path] = _field_meta(f)
     for group in spec.groups.values():
         if group.visible:
             metadata[group.name] = _group_meta(group)
@@ -490,9 +599,9 @@ def _raw_metadata(spec: ConfigSpec) -> dict[str, str]:
 def _choices_for_raw_key(spec: ConfigSpec, raw_key: str) -> list[str]:
     if raw_key == "preset":
         return sorted(spec.presets)
-    for field in spec.fields.values():
-        if field.visible and field.path == raw_key and field.choices:
-            return field.choices
+    for f in spec.fields.values():
+        if f.visible and f.path == raw_key and f.choices:
+            return f.choices
     group = spec.groups.get(raw_key)
     if group is not None and group.visible:
         return group.choices

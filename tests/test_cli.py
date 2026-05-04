@@ -151,10 +151,12 @@ def test_docs_command_writes_markdown_file(tmp_path):
 
 
 def test_launch_command_prints_overrides_from_interactive_launcher(monkeypatch):
+    from hydra_fire.tui import LaunchResult
+
     def fake_launch(spec, *, console, base_path):
         assert "baseline" in spec.presets
         assert base_path == CONFIG.parent
-        return ["job=baseline", "job.size=16"]
+        return LaunchResult(overrides=["job=baseline", "job.size=16"])
 
     monkeypatch.setattr(commands_module, "launch_interactive", fake_launch)
 

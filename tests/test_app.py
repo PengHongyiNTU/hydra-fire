@@ -331,8 +331,10 @@ def test_hydra_fire_decorator_launch_invokes_with_selected_overrides(tmp_path, m
     def main(size: int = 1):
         return size
 
+    from hydra_fire.tui import LaunchResult
+
     def fake_launch_interactive(*args, **kwargs):
-        return ["size=8"]
+        return LaunchResult(overrides=["size=8"])
 
     monkeypatch.setattr(app_module, "launch_interactive", fake_launch_interactive)
 
